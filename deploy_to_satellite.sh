@@ -75,6 +75,12 @@ for filename in $(find /artifacts/${MANIFEST_DIR} -type f -print); do
 done
 
 getAPPUrlSatConfig
-echo "APPURL ${APPURL}"
+
+SATELLITE_CONFIG_ID=$( ibmcloud sat config get --config "${APP_NAME}" --output json | jq -r .uuid )
+echo "Please check details at https://cloud.ibm.com/satellite/configuration/${SATELLITE_CONFIG_ID}/overview"
+
+echo "Deployed Application can be found at the URL  ${APPURL}"
+
+
 
 
