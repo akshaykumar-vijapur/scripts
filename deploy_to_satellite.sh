@@ -5,7 +5,12 @@ function getAPPUrlSatConfig() {
     echo "file name is ${filename}"
     route_name=$(yq -o=json eval ${filename} |   jq -r  'select(.kind=="Route") | .metadata.name')  
      if [ ! -z "${route_name}" ]; then
-      break;
+      if grep -q "razee/watch-resource: lite" ${filename}; then
+        break;
+      else 
+       echo "Did not find [razee/watch-resource: lite] label in your deployment file.  Unable to fetch the application url. Please visit https://cloud.ibm.com/docs/satellite?topic=satellite-satcon-manage&mhsrc=ibmsearch_a&mhq=razee%2Fwatch-resource%3A+lite#satconfig-enable-watchkeeper-specific"
+       return
+      fi
     fi
   done
 
