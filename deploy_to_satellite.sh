@@ -1,8 +1,15 @@
 #!/bin/bash
 
+#################################
+## This script can be executed in a Manifest repo which contains only K8's deployment manifest files.
+## It will create a IBM satellite configuration along with version.
+## It will apply subscription to a satellite cluster group.
+#################################
+
+
 function getAPPUrlSatConfig() {
   for filename in $(find /artifacts/${MANIFEST_DIR} -type f -print); do   
-    echo "file name is ${filename}"
+    echo "Creating Satellite Config for resources present in source file ${filename}."
     route_name=$(yq -o=json eval ${filename} |   jq -r  'select(.kind=="Route") | .metadata.name')  
      if [ ! -z "${route_name}" ]; then
       if grep -q "razee/watch-resource: lite" ${filename}; then
@@ -15,7 +22,7 @@ function getAPPUrlSatConfig() {
   done
 
   if [ -z "${route_name}" ]; then
-    echo "Did not find deployment of type route. Unable to fetch the application url....."
+    echo "Unable to find OpenShift Route resource type in the ${MANIFEST_DIR} directory......"
     return
   fi
 
@@ -50,20 +57,22 @@ echo "Creating config for ${SAT_CONFIG}...."
 export SATELLITE_SUBSCRIPTION="${APP_NAME}-${SAT_CONFIG}"
 export SAT_CONFIG_VERSION
 if ! ic sat config version get --config "${APP_NAME}" --version "${SAT_CONFIG_VERSION}" &>/dev/null; then
-  echo -e "Current resource ${SAT_CONFIG_VERSION} not found, creating it"
+  echo -e "Satellite Config resource with version  ${SAT_CONFIG_VERSION} not found, creating it now."
   if ! ibmcloud sat config get --config "${APP_NAME}" &>/dev/null ; then
     ibmcloud sat config create --name "${APP_NAME}"
   fi
-  echo "deployment file is ${DEPLOY_FILE}"
+  echo "Creating Satellite Config resource from source file ${DEPLOY_FILE}"
   ibmcloud sat config version create --name "${SAT_CONFIG_VERSION}" --config "${APP_NAME}" --file-format yaml --read-config "${DEPLOY_FILE}"
 else
-  echo -e "Current resource ${SAT_CONFIG_VERSION} already found."
+  echo -e "Satellite Config resource with version ${SAT_CONFIG_VERSION} already found."
 fi
 
 EXISTING_SUB=$(ibmcloud sat subscription ls -q | grep "${SATELLITE_SUBSCRIPTION}" || true)
   if [ -z "${EXISTING_SUB}" ]; then
+    echo -e "Satellite subscription with subscription name ${SATELLITE_SUBSCRIPTION} not found. Creating it now."
     ibmcloud sat subscription create --name "${SATELLITE_SUBSCRIPTION}" --group "${SATELLITE_CLUSTER_GROUP}" --version "${SAT_CONFIG_VERSION}" --config "${APP_NAME}"
   else
+    echo -e "Satellite subscription with subscription name ${SATELLITE_SUBSCRIPTION} already found. Updating it now."
     ibmcloud sat subscription update --subscription "${SATELLITE_SUBSCRIPTION}" -f --group "${SATELLITE_CLUSTER_GROUP}" --version "${SAT_CONFIG_VERSION}"
 fi
 }
@@ -71,7 +80,7 @@ fi
 ls -laht /artifacts/${MANIFEST_DIR}
 commit=$(git log -1 --pretty=format:%h)
 for filename in $(find /artifacts/${MANIFEST_DIR} -type f -print); do   
-  echo "file name is ${filename}" 
+  echo "Searching for OpenShift Route resource type in file ${filename}" 
   config_name=$(basename ${filename} | cut -d. -f1)
   config_name_version=${config_name}_${commit} 
   #echo "updating the namespaces in the deployment file."
@@ -80,6 +89,11 @@ for filename in $(find /artifacts/${MANIFEST_DIR} -type f -print); do
 done
 
 getAPPUrlSatConfig
-echo "APPURL ${APPURL}"
+
+SATELLITE_CONFIG_ID=$( ibmcloud sat config get --config "${APP_NAME}" --output json | jq -r .uuid )
+echo "Please check details at https://cloud.ibm.com/satellite/configuration/${SATELLITE_CONFIG_ID}/overview"
+
+echo "Deployed Application can be found at the URL  ${APPURL}"
+
 
 
