@@ -11,11 +11,11 @@ GREEN="\e[32m"
 ENDCOLOR="\e[0m"
 
 function printLog() {
-  echo -e "${GREEN} $1 ${ENDCOLOR} \n"
+  echo -e "\n${GREEN}$1${ENDCOLOR} \n"
 }
 
 function printWarning() {
-  echo -e "${RED} $1 ${ENDCOLOR} \n"
+  echo -e "\n${RED}$1${ENDCOLOR} \n"
 }
 
 
